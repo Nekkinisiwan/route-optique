@@ -89,9 +89,11 @@ async function exportAppImpl(
 
   const nextConfig =
     options.nextConfig ||
-    (await span
-      .traceChild('load-next-config')
-      .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
+    (await span.traceChild('load-next-config').traceAsyncFn(() =>
+      loadConfig(PHASE_EXPORT, dir, {
+        debugPrerender: options.debugPrerender,
+      })
+    ))
 
   const distDir = join(dir, nextConfig.distDir)
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
@@ -408,6 +410,14 @@ async function exportAppImpl(
       authInterrupts: !!nextConfig.experimental.authInterrupts,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
+    hasReadableErrorStacks:
+      nextConfig.experimental.serverSourceMaps === true &&
+      // TODO(NDX-531): Checking (and setting) the minify flags should be
+      // unnecessary once name mapping is fixed.
+      (process.env.TURBOPACK
+        ? nextConfig.experimental.turbopackMinify === false
+        : nextConfig.experimental.serverMinification === false) &&
+      nextConfig.experimental.enablePrerenderSourceMaps === true,
   }
 
   const { publicRuntimeConfig } = nextConfig
