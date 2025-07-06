@@ -228,6 +228,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
     this.methods = autoImplementMethods(userland)
+    this.isAppRouter = true
 
     // Get the non-static methods for this route.
     this.hasNonStaticMethods = hasNonStaticMethods(userland)
@@ -391,6 +392,7 @@ export class AppRouteRouteModule extends RouteModule<
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
               dynamicTracking,
+              allowEmptyStaticShell: false,
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
@@ -399,6 +401,7 @@ export class AppRouteRouteModule extends RouteModule<
               prerenderResumeDataCache: null,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
+              captureOwnerStack: undefined,
             })
 
           let prospectiveResult
@@ -481,6 +484,7 @@ export class AppRouteRouteModule extends RouteModule<
             controller: finalController,
             cacheSignal: null,
             dynamicTracking,
+            allowEmptyStaticShell: false,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
@@ -489,6 +493,7 @@ export class AppRouteRouteModule extends RouteModule<
             prerenderResumeDataCache: null,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
+            captureOwnerStack: undefined,
           })
 
           let responseHandled = false
