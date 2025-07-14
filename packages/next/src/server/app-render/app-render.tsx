@@ -54,6 +54,7 @@ import {
   RSC_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_HMR_REFRESH_HASH_COOKIE,
+  NEXT_ROUTER_INCLUDE_NOT_FOUND_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
@@ -228,6 +229,7 @@ export type AppRenderContext = {
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
+  includeNotFound: boolean
   requestId: string
   pagePath: string
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
@@ -272,6 +274,7 @@ interface ParsedRequestHeaders {
   readonly isDevWarmupRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
+  readonly includeNotFound: boolean
   readonly nonce: string | undefined
   readonly previouslyRevalidatedTags: string[]
 }
@@ -319,6 +322,9 @@ function parseRequestHeaders(
     options.previewModeId
   )
 
+  const includeNotFound =
+    headers[NEXT_ROUTER_INCLUDE_NOT_FOUND_HEADER.toLowerCase()] === '1'
+
   return {
     flightRouterState,
     isPrefetchRequest,
@@ -328,6 +334,7 @@ function parseRequestHeaders(
     isDevWarmupRequest,
     nonce,
     previouslyRevalidatedTags,
+    includeNotFound,
   }
 }
 
@@ -1341,6 +1348,7 @@ async function renderToHTMLOrFlightImpl(
     isDevWarmupRequest,
     isHmrRefresh,
     nonce,
+    includeNotFound,
   } = parsedRequestHeaders
 
   const { isStaticGeneration, fallbackRouteParams } = workStore
@@ -1404,6 +1412,7 @@ async function renderToHTMLOrFlightImpl(
     res,
     sharedContext,
     implicitTags,
+    includeNotFound,
   }
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
