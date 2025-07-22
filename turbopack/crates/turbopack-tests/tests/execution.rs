@@ -35,7 +35,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     issue::IssueDescriptionExt,
@@ -191,7 +191,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     // Set up a `tracing_subscriber` for debugging -- We can only do this when using nextest, as
     // `cargo test` runs all execution test cases in the same process.
     //
-    // Configuring `tracing_subscriber` requires proces-global side-effects. We can't use a
+    // Configuring `tracing_subscriber` requires process-global side-effects. We can't use a
     // thread-local subscriber because we're not fully single-threaded, even with the
     // `current_thread` tokio executor.
     //
@@ -339,11 +339,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().resolved_cell(),
-    ))
-    .to_resolved()
-    .await?;
+    let env = Environment::new(Vc::upcast(NodeJsEnvironment::default().cell()))
+        .to_resolved()
+        .await?;
 
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(

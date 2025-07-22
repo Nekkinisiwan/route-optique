@@ -20,9 +20,7 @@ use turbopack_core::{
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
-    environment::{
-        Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
-    },
+    environment::{Environment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions},
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
     target::CompileTarget,
@@ -367,13 +365,13 @@ pub async fn get_server_compile_time_info(
     node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::NodeJsLambda(
+        Environment::new(Vc::upcast(
             NodeJsEnvironment {
                 compile_target: CompileTarget::current().to_resolved().await?,
                 node_version,
                 cwd: ResolvedVc::cell(Some(cwd)),
             }
-            .resolved_cell(),
+            .cell(),
         ))
         .to_resolved()
         .await?,
