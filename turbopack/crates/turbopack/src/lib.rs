@@ -34,7 +34,7 @@ use turbopack_core::{
     chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, NodeJsEnvironment},
     ident::Layer,
     issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
     module::Module,
@@ -644,11 +644,9 @@ async fn process_default_internal(
 
 #[turbo_tasks::function]
 async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
-    let env = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
-    ))
-    .to_resolved()
-    .await?;
+    let env = Environment::new(Vc::upcast(NodeJsEnvironment::default().cell()))
+        .to_resolved()
+        .await?;
 
     let resolve_options = ResolveOptionsContext {
         emulate_environment: Some(env),
