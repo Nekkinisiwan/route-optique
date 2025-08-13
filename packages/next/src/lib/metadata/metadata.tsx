@@ -38,7 +38,7 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from '../framework/boundary-constants'
-import { AsyncMetadataOutlet } from '../../client/components/metadata/async-metadata'
+// import { AsyncMetadataOutlet } from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
@@ -80,6 +80,9 @@ export function createMetadataComponents({
   getViewportReady: () => Promise<void>
   StreamingMetadataOutlet: React.ComponentType | null
 } {
+  // TEST: Hardcode serveStreamingMetadata to true to rule out edge case
+  serveStreamingMetadata = true
+  
   const searchParams = createServerSearchParamsForMetadata(
     parsedQuery,
     workStore
@@ -243,13 +246,17 @@ export function createMetadataComponents({
     return undefined
   }
 
-  function StreamingMetadataOutletImpl() {
-    return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
-  }
+  // function StreamingMetadataOutletImpl() {
+  //   return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
+  // }
 
-  const StreamingMetadataOutlet = serveStreamingMetadata
-    ? StreamingMetadataOutletImpl
-    : null
+  // HACK: For PPR routes, always use null to ensure consistency between prerender and resume
+  // This prevents "Couldn't find all resumable slots" errors when the tree structure differs
+  const StreamingMetadataOutlet = null
+  // Original logic (commented out for debugging):
+  // const StreamingMetadataOutlet = serveStreamingMetadata
+  //   ? StreamingMetadataOutletImpl
+  //   : null
 
   return {
     ViewportTree,
