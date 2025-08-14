@@ -1151,7 +1151,7 @@ async function loadWasm(importPath = '') {
     return newObj
   }
 
-  // Note wasm binary does not support async intefaces yet, all async
+  // Note wasm binary does not support async interfaces yet, all async
   // interface coereces to sync interfaces.
   wasmBindings = {
     css: {
