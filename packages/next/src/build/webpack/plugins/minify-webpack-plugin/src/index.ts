@@ -191,7 +191,7 @@ export class MinifyPlugin {
                 try {
                   minifiedOutput = await getWorker().minify({
                     input,
-                    inputSourceMap,
+                    inputSourceMap: inputSourceMap as Object,
                   })
                 } catch (error) {
                   compilation.errors.push(buildError(error, name))
@@ -205,7 +205,8 @@ export class MinifyPlugin {
                       name,
                       minifiedOutput.map,
                       input,
-                      inputSourceMap,
+                      // SourceMapSource excepts undefined, not null
+                      inputSourceMap || undefined,
                       true
                     )
                   : new RawSource(minifiedOutput.code)
