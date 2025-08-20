@@ -2331,7 +2331,7 @@ export default async function getBaseWebpackConfig(
     serverReferenceHashSalt: encryptionKey,
   })
 
-  const cache: any = {
+  const cache: webpack.Configuration['cache'] = {
     type: 'filesystem',
     // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
     maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
@@ -2376,6 +2376,27 @@ export default async function getBaseWebpackConfig(
   })
 
   webpack5Config.cache = cache
+
+  if (isRspack) {
+    const buildDependencies: string[] = cache.buildDependencies.config ?? []
+    if (babelConfigFile) {
+      buildDependencies.push(babelConfigFile)
+    }
+    if (jsConfigPath) {
+      buildDependencies.push(jsConfigPath)
+    }
+
+    // @ts-ignore
+    webpack5Config.experiments.cache = {
+      type: 'persistent',
+      buildDependencies,
+      storage: {
+        type: 'filesystem',
+        directory: cache.cacheDirectory,
+      },
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
+    }
+  }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
     const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
