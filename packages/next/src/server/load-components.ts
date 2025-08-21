@@ -34,6 +34,7 @@ import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../lib/metadata/is-metadata-route'
+import { RouteKind } from './route-kind'
 
 export type ManifestItem = {
   id: number | string
@@ -100,20 +101,6 @@ export async function loadManifestWithRetries<T extends object>(
 }
 
 /**
- * Load manifest file with retries, defaults to 3 attempts, or return undefined.
- */
-export async function tryLoadManifestWithRetries<T extends object>(
-  manifestPath: string,
-  attempts = 3
-) {
-  try {
-    return await loadManifestWithRetries<T>(manifestPath, attempts)
-  } catch (err) {
-    return undefined
-  }
-}
-
-/**
  * Load manifest file with retries, defaults to 3 attempts.
  */
 export async function evalManifestWithRetries<T extends object>(
@@ -132,19 +119,27 @@ export async function evalManifestWithRetries<T extends object>(
   }
 }
 
-async function tryLoadClientReferenceManifest(
+async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string,
   attempts?: number
 ) {
-  try {
-    const context = await evalManifestWithRetries<{
-      __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
-    }>(manifestPath, attempts)
-    return context.__RSC_MANIFEST[entryName]
-  } catch (err) {
-    return undefined
-  }
+  const context = await evalManifestWithRetries<{
+    __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
+  }>(manifestPath, attempts)
+  return context.__RSC_MANIFEST[entryName]
+}
+
+/**
+ * This function returns either the module or a static html string.
+ */
+export async function getComponentMod(
+  page: string,
+  distDir: string,
+  isAppPath: boolean
+) {
+  const ComponentMod = await requirePage(page, distDir, isAppPath)
+  return ComponentMod
 }
 
 async function loadComponentsImpl<N = any>({
@@ -197,7 +192,11 @@ async function loadComponentsImpl<N = any>({
   }
 
   // Make sure to avoid loading the manifest for static metadata routes for better performance.
-  const hasClientManifest = !isStaticMetadataRoute(page)
+  // TODO: We should not rely on the `page` in order to determine route type. `definition.kind` has this information for each bundle. The problem with ClientReferenceManifest is that it's used in `setReferenceManifestsSingleton` which has to run before the route itself is required.
+  const hasClientManifest =
+    !isStaticMetadataRoute(page) &&
+    // Temporary hack to exclude loading the clientReferenceManifest for Route Handlers.
+    !page.endsWith('/route')
 
   // Load the manifest files first
   //
@@ -206,7 +205,6 @@ async function loadComponentsImpl<N = any>({
   // (a `PageNotFoundError`).
   const [
     buildManifest,
-    reactLoadableManifest,
     dynamicCssManifest,
     clientReferenceManifest,
     serverActionsManifest,
@@ -216,10 +214,7 @@ async function loadComponentsImpl<N = any>({
       join(distDir, BUILD_MANIFEST),
       manifestLoadAttempts
     ),
-    tryLoadManifestWithRetries<ReactLoadableManifest>(
-      reactLoadableManifestPath,
-      manifestLoadAttempts
-    ),
+
     // This manifest will only exist in Pages dir && Production && Webpack.
     isAppPath || process.env.TURBOPACK
       ? undefined
@@ -228,7 +223,7 @@ async function loadComponentsImpl<N = any>({
           manifestLoadAttempts
         ).catch(() => undefined),
     isAppPath && hasClientManifest
-      ? tryLoadClientReferenceManifest(
+      ? loadClientReferenceManifest(
           join(
             distDir,
             'server',
@@ -266,14 +261,26 @@ async function loadComponentsImpl<N = any>({
     })
   }
 
-  const ComponentMod = await requirePage(page, distDir, isAppPath)
+  const ComponentMod = await getComponentMod(page, distDir, isAppPath)
+
+  const isStaticHTML = typeof ComponentMod === 'string'
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
   const App = interopDefault(AppMod)
 
-  const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
-    ComponentMod
+  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+
+  const routeModule = ComponentMod.routeModule as RouteModule
+
+  const reactLoadableManifest =
+    // APP_ROUTE does not have a react-loadable-manifest.
+    isStaticHTML || routeModule.definition.kind === RouteKind.APP_ROUTE
+      ? undefined
+      : await loadManifestWithRetries<ReactLoadableManifest>(
+          reactLoadableManifestPath,
+          manifestLoadAttempts
+        )
 
   return {
     App,
