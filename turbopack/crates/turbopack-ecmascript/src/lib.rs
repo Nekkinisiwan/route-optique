@@ -23,7 +23,6 @@ mod path_visitor;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
-pub(crate) mod special_cases;
 pub(crate) mod static_code;
 mod swc_comments;
 pub mod text;
@@ -2015,6 +2014,8 @@ fn process_content_with_code_gens(
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
+    let mut early_late_stmts = FxIndexMap::default();
+    let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
             hoisted_stmts.entry(key).or_insert(stmt);
@@ -2022,7 +2023,12 @@ fn process_content_with_code_gens(
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
-
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.late_stmts.drain(..) {
+            late_stmts.insert(key.clone(), stmt);
+        }
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_late_stmts.drain(..) {
+            early_late_stmts.insert(key.clone(), stmt);
+        }
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
                 root_visitors.push(&**visitor);
@@ -2053,6 +2059,12 @@ fn process_content_with_code_gens(
                     .chain(hoisted_stmts.into_values())
                     .map(ModuleItem::Stmt),
             );
+            body.extend(
+                early_late_stmts
+                    .into_values()
+                    .chain(late_stmts.into_values())
+                    .map(ModuleItem::Stmt),
+            );
         }
         Program::Script(Script { body, .. }) => {
             body.splice(
@@ -2060,6 +2072,11 @@ fn process_content_with_code_gens(
                 early_hoisted_stmts
                     .into_values()
                     .chain(hoisted_stmts.into_values()),
+            );
+            body.extend(
+                early_late_stmts
+                    .into_values()
+                    .chain(late_stmts.into_values()),
             );
         }
     };
