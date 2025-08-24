@@ -303,7 +303,7 @@ export function createPatchedFetcher(
           'net.peer.port': url?.port || undefined,
         },
       },
-      async () => {
+      async (span) => {
         // If this is an internal fetch, we should not do any special treatment.
         if (isInternal) {
           return originFetch(input, init)
@@ -792,15 +792,24 @@ export function createPatchedFetcher(
 
           return originFetch(input, clonedInit)
             .then(async (res) => {
+              const cacheStatus =
+                finalRevalidate === 0 || cacheReasonOverride ? 'skip' : 'miss'
+
+              // set span cache attributes
+              if (!isStale && span && !isInternal) {
+                span.setAttributes({
+                  'next.cache.status': cacheStatus,
+                  'next.cache.reason': cacheReasonOverride || cacheReason,
+                  'next.cache.revalidate': finalRevalidate ?? 'undefined',
+                })
+              }
+
               if (!isStale && fetchStart) {
                 trackFetchMetric(workStore, {
                   start: fetchStart,
                   url: fetchUrl,
                   cacheReason: cacheReasonOverride || cacheReason,
-                  cacheStatus:
-                    finalRevalidate === 0 || cacheReasonOverride
-                      ? 'skip'
-                      : 'miss',
+                  cacheStatus,
                   cacheWarning,
                   status: res.status,
                   method: clonedInit.method || 'GET',
@@ -967,12 +976,22 @@ export function createPatchedFetcher(
           }
 
           if (cachedFetchData) {
+            const cacheStatus = isHmrRefreshCache ? 'hmr' : 'hit'
+
+            if (span && !isInternal) {
+              span.setAttributes({
+                'next.cache.status': cacheStatus,
+                'next.cache.reason': cacheReason,
+                'next.cache.revalidate': finalRevalidate ?? 'undefined',
+              })
+            }
+
             if (fetchStart) {
               trackFetchMetric(workStore, {
                 start: fetchStart,
                 url: fetchUrl,
                 cacheReason,
-                cacheStatus: isHmrRefreshCache ? 'hmr' : 'hit',
+                cacheStatus,
                 cacheWarning,
                 status: cachedFetchData.status || 200,
                 method: init?.method || 'GET',
@@ -1083,6 +1102,14 @@ export function createPatchedFetcher(
         // the fetch cache entry is stale we should still de-dupe the
         // origin hit if it's a cache-able entry
         if (cacheKey && isForegroundRevalidate) {
+          // set span attributes for foreground revalidate
+          if (span && !isInternal) {
+            span.setAttributes({
+              'next.cache.status': 'miss',
+              'next.cache.reason': cacheReason,
+              'next.cache.revalidate': finalRevalidate ?? 'undefined',
+            })
+          }
           const pendingRevalidateKey = cacheKey
           workStore.pendingRevalidates ??= {}
           let pendingRevalidate =
