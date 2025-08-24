@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
 use once_cell::sync::Lazy;
@@ -127,6 +127,18 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
     if actual != expected {
         if let Some(actual) = actual {
             if *UPDATE {
+                dbg!(&path);
+                // Check if it's a sourcemap file and visualize it
+                if let Some(extension) = path.extension_ref()
+                    && extension == "map"
+                {
+                    // Read sourcemap file content
+                    // Perform sourcemap visualization
+                    if let Err(e) = visualize_sourcemap_as_markdown(&actual, &path).await {
+                        eprintln!("Failed to visualize sourcemap {path}: {e}");
+                    }
+                }
+
                 let content = File::from(RcStr::from(actual)).into();
                 path.write(content).await?;
                 println!("updated contents of {path_str}");
@@ -235,4 +247,126 @@ fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {
         StyledString::Code(string) => format!("__c_{string}__"),
         StyledString::Strong(string) => format!("__{string}__"),
     }
+}
+
+/// Function to decode sourcemap and visualize it as markdown
+async fn visualize_sourcemap_as_markdown(
+    sourcemap_content: &str,
+    output_path: &FileSystemPath,
+) -> Result<()> {
+    // Parse sourcemap
+    let sourcemap = match swc_sourcemap::decode_slice(sourcemap_content.as_bytes()) {
+        Ok(sm) => match sm {
+            swc_sourcemap::DecodedMap::Regular(source_map) => source_map,
+            swc_sourcemap::DecodedMap::Index(source_map_index) => source_map_index.flatten()?,
+            _ => unreachable!("unexpected sourcemap type"),
+        },
+        Err(e) => {
+            eprintln!("Failed to parse sourcemap: {e}");
+            return Ok(());
+        }
+    };
+
+    let mut markdown_content = String::new();
+    markdown_content.push_str("# Source Map Visualization\n\n");
+
+    // Basic information
+    markdown_content.push_str("## Basic Information\n\n");
+
+    if let Some(file) = sourcemap.get_file() {
+        markdown_content.push_str(&format!("- **File**: {file}\n"));
+    }
+
+    if let Some(source_root) = sourcemap.get_source_root() {
+        markdown_content.push_str(&format!("- **Source Root**: {source_root}\n"));
+    }
+
+    // Source files
+    markdown_content.push_str("\n## Source Files\n\n");
+    for (i, source) in sourcemap.sources().enumerate() {
+        markdown_content.push_str(&format!("{}. `{source}`\n", i + 1));
+    }
+
+    // Mapping information
+    markdown_content.push_str("\n## Mappings Overview\n\n");
+
+    let mut total_mappings = 0;
+    let mut line_count = 0;
+
+    // Iterate through tokens
+    for token in sourcemap.tokens() {
+        total_mappings += 1;
+        if token.get_dst_line() > line_count {
+            line_count = token.get_dst_line();
+        }
+    }
+
+    markdown_content.push_str(&format!("- **Total Mappings**: {total_mappings}\n"));
+    markdown_content.push_str(&format!("- **Generated Lines**: {}\n", line_count + 1));
+
+    // Mapping table (show first 50 entries only)
+    markdown_content.push_str("\n## Mapping Details (First 50 entries)\n");
+    markdown_content.push_str("| Generated | Original | Source File | Name |\n");
+    markdown_content.push_str("|-----------|----------|-------------|------|\n");
+
+    for (count, token) in sourcemap.tokens().enumerate() {
+        if count >= 50 {
+            markdown_content.push_str("| ... | ... | ... | ... |\n");
+            break;
+        }
+
+        let generated_pos = format!("{}:{}", token.get_dst_line() + 1, token.get_dst_col());
+        let original_pos = format!("{}:{}", token.get_src_line() + 1, token.get_src_col());
+
+        let src_id = token.get_src_id();
+        let source_file = sourcemap
+            .get_source(src_id)
+            .map(|v| &**v)
+            .unwrap_or("Unknown");
+
+        let name = sourcemap
+            .get_name(token.get_name_id())
+            .map(|v| &**v)
+            .unwrap_or("N/A");
+
+        markdown_content.push_str(&format!(
+            "| {generated_pos} | {original_pos} | {source_file} | {name} |\n"
+        ));
+    }
+
+    // Source contents (if available)
+    if sourcemap.source_contents().count() != 0 {
+        markdown_content.push_str("\n## Source Contents\n\n");
+        for (i, content) in sourcemap.source_contents().enumerate() {
+            if let Some(content) = content {
+                let source_name = sourcemap.get_source(i as u32).map(|v| &**v).unwrap_or("");
+                markdown_content.push_str(&format!("### {source_name}\n"));
+                markdown_content.push_str("```javascript\n");
+                // If content is too long, show only the first 20 lines
+                let lines: Vec<&str> = content.lines().collect();
+                if lines.len() > 20 {
+                    for line in &lines[..20] {
+                        markdown_content.push_str(line);
+                        markdown_content.push('\n');
+                    }
+                    markdown_content
+                        .push_str(&format!("\n// ... ({} more lines)\n", lines.len() - 20))
+                } else {
+                    markdown_content.push_str(content);
+                }
+                markdown_content.push_str("```\n\n");
+            }
+        }
+    }
+
+    // Save markdown file
+    let markdown_path = output_path.with_extension("map.md");
+    fs::create_dir_all(&markdown_path.parent().path)?;
+    if let Err(e) = fs::write(markdown_path.to_string(), markdown_content) {
+        eprintln!("Failed to write sourcemap markdown: {e}");
+    } else {
+        println!("Generated sourcemap visualization: {markdown_path}");
+    }
+
+    Ok(())
 }
