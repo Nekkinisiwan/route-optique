@@ -818,10 +818,36 @@ impl AppProject {
     #[turbo_tasks::function]
     pub async fn routes(self: Vc<Self>) -> Result<Vc<Routes>> {
         let app_entrypoints = self.app_entrypoints();
+        let next_config = self.project().next_config().await?;
+        let is_export_mode = matches!(
+            next_config.output,
+            Some(next_core::next_config::OutputType::Export)
+        );
+
         Ok(Vc::cell(
             app_entrypoints
                 .await?
                 .iter()
+                .filter_map(|(pathname, app_entrypoint)| {
+                    // Exclude static metadata files from the entries as they will be copied
+                    // to .next/static/metadata/ and serve as static files on requests.
+                    match app_entrypoint {
+                        AppEntrypoint::AppMetadata {
+                            metadata: MetadataItem::Static { .. },
+                            ..
+                        } => {
+                            // TODO(jiwon): Export mode has bug in resolving metadata files in
+                            // dynamic routes. Follow up to support
+                            // export mode with copied metadata files.
+                            if is_export_mode {
+                                Some((pathname, app_entrypoint))
+                            } else {
+                                None
+                            }
+                        }
+                        _ => Some((pathname, app_entrypoint)),
+                    }
+                })
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.to_string().into(),

@@ -1,4 +1,4 @@
-import { isMetadataPage } from './is-metadata-route'
+import { isMetadataPage, isMetadataStaticFileRoute } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -25,7 +25,7 @@ import {
  * /sitemap -> /sitemap
  * /(post)/sitemap -> /sitemap
  */
-function getMetadataRouteSuffix(page: string) {
+export function getMetadataRouteSuffix(page: string) {
   // Remove the last segment and get the parent pathname
   // e.g. /parent/a/b/c -> /parent/a/b
   // e.g. /parent/opengraph-image -> /parent
@@ -76,16 +76,28 @@ export function fillMetadataSegment(
 /**
  * Map metadata page key to the corresponding route
  *
- * static file page key:    /app/robots.txt -> /robots.xml -> /robots.txt/route
- * dynamic route page key:  /app/robots.tsx -> /robots -> /robots.txt/route
+ * static file page key:    /robots.txt -> /robots.txt
+ * dynamic route page key:  /robots -> /robots.txt/route
  *
  * @param page
  * @returns
  */
-export function normalizeMetadataRoute(page: string) {
+export function normalizeMetadataRoute(page: string, isExportMode?: boolean) {
   if (!isMetadataPage(page)) {
     return page
   }
+
+  // Static metadata files will be excluded from the build entries,
+  // but instead will be copied to ".next/static/metadata/" and served
+  // as static files on requests.
+  // TODO(jiwon): Remove this once we support export mode with copied metadata files.
+  if (!isExportMode && isMetadataStaticFileRoute(page)) {
+    const { dir, name, ext } = path.parse(page)
+    const suffix = getMetadataRouteSuffix(page)
+
+    return path.posix.join(dir, `${name}${suffix ? `-${suffix}` : ''}${ext}`)
+  }
+
   let route = page
   let suffix = ''
   if (page === '/robots') {
@@ -95,6 +107,7 @@ export function normalizeMetadataRoute(page: string) {
   } else {
     suffix = getMetadataRouteSuffix(page)
   }
+
   // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
   // If it's a metadata file route, we need to append /[id]/route to the page.
   if (!route.endsWith('/route')) {

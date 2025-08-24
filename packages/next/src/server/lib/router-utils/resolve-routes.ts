@@ -48,6 +48,7 @@ import {
 import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
+import { isMetadataStaticFileRoute } from '../../../lib/metadata/is-metadata-route'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -259,7 +260,11 @@ export function getResolveRoutes(
         return
       }
       if (!invokedOutputs?.has(pathname)) {
-        const output = await fsChecker.getItem(pathname)
+        const output = await fsChecker.getItem(
+          isMetadataStaticFileRoute(pathname)
+            ? '/_next/static/metadata' + pathname
+            : pathname
+        )
 
         if (output) {
           if (
@@ -291,11 +296,32 @@ export function getResolveRoutes(
         if (invokedOutputs?.has(route.page)) {
           continue
         }
-        const params = route.match(localeResult.pathname)
+
+        const isMetadataStatic = isMetadataStaticFileRoute(
+          localeResult.pathname
+        )
+
+        const params = route.match(
+          isMetadataStatic
+            ? // If the request is metadata file, it would have one more segment
+              // after the dynamic param (its filename, e.g., /[id]/sitemap.xml),
+              // so use the dirname to match the dynamic route value.
+              path.posix.dirname(localeResult.pathname)
+            : localeResult.pathname
+        )
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
-            addPathPrefix(route.page, config.basePath || '')
+            isMetadataStatic
+              ? addPathPrefix(
+                  // `route.page` has up until the segment, so add the filename.
+                  // e.g. /[id] -> /[id]/sitemap.xml
+                  route.page +
+                    (route.page.endsWith('/') ? '' : '/') +
+                    path.posix.basename(localeResult.pathname),
+                  '/_next/static/metadata'
+                )
+              : addPathPrefix(route.page, config.basePath || '')
           )
 
           // i18n locales aren't matched for app dir

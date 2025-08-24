@@ -11,8 +11,10 @@ import type {
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
+import type { Rewrite } from '../lib/load-custom-routes'
 
-import { posix, join, dirname, extname, normalize } from 'path'
+import { posix, join, dirname, extname, normalize, parse } from 'path'
+import { copyFile, mkdir, stat } from 'fs/promises'
 import { stringify } from 'querystring'
 import fs from 'fs'
 import {
@@ -68,7 +70,10 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../lib/is-internal-component'
-import { isMetadataRouteFile } from '../lib/metadata/is-metadata-route'
+import {
+  isMetadataRouteFile,
+  isMetadataStaticFileRoute,
+} from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
@@ -86,6 +91,11 @@ import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
+import {
+  INTERCEPTION_ROUTE_MARKERS,
+  isInterceptionRouteAppPath,
+} from '../shared/lib/router/utils/interception-routes'
+import { toPathToRegexpPath } from '../lib/generate-interception-routes-rewrites'
 
 /**
  * Collect app pages, layouts, and default files from the app directory
@@ -561,6 +571,7 @@ export async function createPagesMapping({
   pagesDir,
   appDir,
   appDirOnly,
+  isExportMode,
 }: {
   isDev: boolean
   pageExtensions: PageExtensions
@@ -569,6 +580,8 @@ export async function createPagesMapping({
   pagesDir: string | undefined
   appDir: string | undefined
   appDirOnly: boolean
+  // TODO(jiwon): Remove this once we support export mode with copied metadata files.
+  isExportMode?: boolean
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
   const pages: MappedPages = {}
@@ -600,7 +613,21 @@ export async function createPagesMapping({
       )
     )
 
-    let route = pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
+    if (
+      // TODO(jiwon): Remove this once we support export mode with copied metadata files.
+      !isExportMode &&
+      pagesType === 'app' &&
+      isMetadataStaticFileRoute(pagePath)
+    ) {
+      // These files will be copied under ".next/static/metadata/" and served
+      // as static files on requests.
+      return
+    }
+
+    let route =
+      pagesType === 'app'
+        ? normalizeMetadataRoute(pageKey, isExportMode)
+        : pageKey
 
     if (
       pagesType === 'app' &&
@@ -676,6 +703,98 @@ export async function createPagesMapping({
       return {}
     }
   }
+}
+
+export async function copyMetadataStaticFiles({
+  distDir,
+  pagePaths,
+  appDir,
+}: {
+  distDir: string
+  pagePaths: string[]
+  appDir: string
+}): Promise<Rewrite[]> {
+  const staticMetadataRewrites: Rewrite[] = []
+
+  const promises = pagePaths.map<Promise<void>>(async (pagePath) => {
+    if (!isMetadataStaticFileRoute(pagePath)) {
+      return
+    }
+
+    const filePath = join(appDir, pagePath)
+
+    // Check if the path is actually a file, not a directory.
+    // This is to prevent Turbopack from treating directories as metadata routes.
+    const fileStats = await stat(filePath).catch(() => null)
+    if (!fileStats?.isFile()) {
+      return
+    }
+    const filename = parse(filePath).name
+    const isTwitterImage = filename === 'twitter-image'
+    const isOpenGraphImage = filename === 'opengraph-image'
+
+    if (isTwitterImage || isOpenGraphImage) {
+      const imgName = isTwitterImage ? 'Twitter' : 'Open Graph'
+      // Twitter image file size limit is 5MB.
+      // General Open Graph image file size limit is 8MB.
+      // x-ref: https://developer.x.com/en/docs/x-for-websites/cards/overview/summary
+      // x-ref(facebook): https://developers.facebook.com/docs/sharing/webmasters/images
+      const fileSizeLimit = isTwitterImage ? 5 : 8
+      const fileSizeInMB = fileStats.size / (1024 * 1024)
+
+      if (fileSizeInMB > fileSizeLimit) {
+        // In Turbopack, the path is simplified as [project]/..., so match for consistency.
+        const turbopackStyleFilePath = filePath.replace(appDir, '[project]/app')
+        const imgPath = process.env.TURBOPACK
+          ? turbopackStyleFilePath
+          : filePath
+
+        throw new Error(
+          `File size for ${imgName} image "${imgPath}" exceeds ${fileSizeLimit}MB. ` +
+            `(Current: ${fileSizeInMB.toFixed(2)}MB)\n` +
+            'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
+        )
+      }
+    }
+
+    const routePath = normalizeAppPath(
+      normalizeMetadataRoute(normalizePathSep(pagePath))
+    )
+    const targetPath = join(distDir, 'static', 'metadata', routePath)
+    await mkdir(dirname(targetPath), { recursive: true })
+    await copyFile(filePath, targetPath)
+
+    // Normally "source" wouldn't expect an interception route pattern
+    // because we preprocess and split into "intercepting" and "intercepted".
+    // However since path-to-regexp will parse it as a group regex, we need
+    // to escape the intercepting route pattern.
+    let source = toPathToRegexpPath(routePath)
+    if (isInterceptionRouteAppPath(routePath)) {
+      // Split by segments and only escape actual interception route markers
+      const segments = routePath.split('/')
+      const escapedPath = segments
+        .map((segment) => {
+          const marker = INTERCEPTION_ROUTE_MARKERS.find((m) =>
+            segment.startsWith(m)
+          )
+          if (marker) {
+            // Escape only the interception marker part
+            return segment.replace(marker, marker.replace(/[()]/g, '\\$&'))
+          }
+          return segment
+        })
+        .join('/')
+      source = toPathToRegexpPath(escapedPath)
+    }
+
+    staticMetadataRewrites.push({
+      source,
+      destination: `/_next/static/metadata${routePath}`,
+    })
+  })
+
+  await Promise.all(promises)
+  return staticMetadataRewrites
 }
 
 export interface CreateEntrypointsParams {

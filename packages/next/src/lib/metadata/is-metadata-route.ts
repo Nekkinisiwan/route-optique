@@ -45,6 +45,22 @@ export const getExtensionRegexString = (
 }
 
 /**
+ * Matches the route path of static metadata files, e.g. /robots.txt, /sitemap.xml, /favicon.ico, etc.
+ * This includes paths with suffixes like /icon1.png, /icon-xxxxxx.png, etc.
+ * @param appDirRelativePath - The relative path to the app directory.
+ * @returns True if the path is a static metadata file route, false otherwise.
+ */
+export function isMetadataStaticFileRoute(appDirRelativePath: string) {
+  // Strip group suffix (-\w{6}) from the path before checking
+  const pathWithoutGroupSuffix = appDirRelativePath.replace(
+    /-\w{6}(?=\.[^/]*$)/,
+    ''
+  )
+
+  return isMetadataRouteFile(pathWithoutGroupSuffix, [], true)
+}
+
+/**
  * Determine if the file is a metadata route file entry
  * @param appDirRelativePath the relative file path to app/
  * @param pageExtensions the js extensions, such as ['js', 'jsx', 'ts', 'tsx']
@@ -61,9 +77,10 @@ export function isMetadataRouteFile(
   // When strictlyMatchExtensions, the dynamic extension is skipped but
   // static extension is kept, which is usually used for matching route path.
   const trailingMatcher = (strictlyMatchExtensions ? '' : '?') + '$'
-  // Match the optional variants like /opengraph-image2, /icon-a102f4.png, etc.
+  // Match the optional variants like /icon[0-9].png
   const variantsMatcher = '\\d?'
-  // The -\w{6} is the suffix that normalized from group routes;
+  // Hash suffix added for routes like parallel, intercept, and group routes.
+  // E.g. /icon-xxxxxx.png, /opengraph-image-yyyyyy.jpg, etc.
   const groupSuffix = strictlyMatchExtensions ? '' : '(-\\w{6})?'
 
   const suffixMatcher = `${variantsMatcher}${groupSuffix}`

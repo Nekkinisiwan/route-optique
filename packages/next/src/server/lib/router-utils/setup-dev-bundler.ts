@@ -34,6 +34,7 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   getStaticInfoIncludingLayouts,
   sortByPageExts,
+  copyMetadataStaticFiles,
 } from '../../../build/entries'
 import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
@@ -71,7 +72,10 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
-import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import {
+  isMetadataRouteFile,
+  isMetadataStaticFileRoute,
+} from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -338,6 +342,7 @@ async function startWatcher(
       },
     })
     const fileWatchTimes = new Map()
+    const previousMetadataFiles = new Set<string>()
     let enabledTypeScript = usingTypeScript
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
@@ -361,6 +366,7 @@ async function startWatcher(
       const appRoutes: Array<{ route: string; filePath: string }> = []
       const layoutRoutes: Array<{ route: string; filePath: string }> = []
       const slots: Array<{ name: string; parent: string }> = []
+      const currentMetadataFiles = new Set<string>()
 
       let envChange = false
       let tsconfigChange = false
@@ -407,6 +413,27 @@ async function startWatcher(
           if (watchTimeChange) {
             tsconfigChange = true
           }
+          continue
+        }
+
+        if (appDir && isMetadataStaticFileRoute(fileName.replace(appDir, ''))) {
+          currentMetadataFiles.add(fileName)
+
+          if (watchTimeChange) {
+            const relativePath = `/${path.relative(appDir, fileName)}`
+            try {
+              await copyMetadataStaticFiles({
+                appDir,
+                pagePaths: [relativePath],
+                distDir,
+              })
+            } catch (error) {
+              Log.error(
+                `Failed to copy metadata file ${relativePath}: ${error instanceof Error ? error.message : String(error)}`
+              )
+            }
+          }
+
           continue
         }
 
@@ -1052,6 +1079,34 @@ async function startWatcher(
           })
         }
         prevSortedRoutes = sortedRoutes
+
+        if (appDir) {
+          for (const previousFile of previousMetadataFiles) {
+            if (!currentMetadataFiles.has(previousFile)) {
+              const targetPath = path.join(
+                distDir,
+                'static',
+                'metadata',
+                path.relative(appDir, previousFile)
+              )
+
+              try {
+                if (fs.existsSync(targetPath)) {
+                  await fs.promises.unlink(targetPath)
+                }
+              } catch (error) {
+                Log.error(
+                  `Failed to remove metadata file ${targetPath}: ${error instanceof Error ? error.message : String(error)}`
+                )
+              }
+            }
+          }
+
+          previousMetadataFiles.clear()
+          for (const file of currentMetadataFiles) {
+            previousMetadataFiles.add(file)
+          }
+        }
 
         if (usingTypeScript) {
           const routeTypesManifest = await createRouteTypesManifest({

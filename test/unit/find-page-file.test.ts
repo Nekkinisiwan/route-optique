@@ -69,8 +69,8 @@ describe('createPageFileMatcher', () => {
     })
   })
 
-  describe('isMetadataRouteFile', () => {
-    it('should determine top level metadata routes', () => {
+  describe('isMetadataFile', () => {
+    it('should determine top level metadata files', () => {
       const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
       const fileMatcher = createValidFileMatcher(pageExtensions, 'app')
       expect(fileMatcher.isMetadataFile('app/route.js')).toBe(false)
@@ -82,6 +82,16 @@ describe('createPageFileMatcher', () => {
 
       expect(fileMatcher.isMetadataFile('app/sitemap.xml')).toBe(true)
       expect(fileMatcher.isMetadataFile('app/path/sitemap.xml')).toBe(true)
+    })
+
+    it('should determine metadata API files', () => {
+      const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
+      const fileMatcher = createValidFileMatcher(pageExtensions, 'app')
+      expect(fileMatcher.isMetadataFile('app/robots.js')).toBe(true)
+      expect(fileMatcher.isMetadataFile('app/path/robots.js')).toBe(false)
+
+      expect(fileMatcher.isMetadataFile('app/sitemap.js')).toBe(true)
+      expect(fileMatcher.isMetadataFile('app/path/sitemap.js')).toBe(true)
     })
   })
 })

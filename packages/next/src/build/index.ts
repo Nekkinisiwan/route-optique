@@ -110,6 +110,7 @@ import {
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
+  copyMetadataStaticFiles,
   createPagesMapping,
   collectAppFiles,
   getStaticInfoIncludingLayouts,
@@ -1228,6 +1229,7 @@ export default async function build(
               pagesDir,
               appDir,
               appDirOnly,
+              isExportMode: config.output === 'export',
             })
           )
 
@@ -1244,6 +1246,21 @@ export default async function build(
               appDirOnly,
             })
           )
+
+        // TODO(jiwon): Export mode has bug in resolving metadata files in dynamic routes.
+        // Follow up to support export mode with copied metadata files.
+        if (config.output !== 'export') {
+          const staticMetadataRewrites: Rewrite[] = await nextBuildSpan
+            .traceChild('copy-metadata-static-files')
+            .traceAsyncFn(() =>
+              copyMetadataStaticFiles({
+                appDir,
+                pagePaths: appPaths,
+                distDir,
+              })
+            )
+          rewrites.beforeFiles.push(...staticMetadataRewrites)
+        }
 
         NextBuildContext.mappedAppPages = mappedAppPages
       }
