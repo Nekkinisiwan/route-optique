@@ -30,7 +30,7 @@ export class NextDevInstance extends NextInstance {
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
-      'pnpm',
+      this.packageManager,
       'next',
       useTurbo ? '--turbopack' : undefined,
     ].filter(Boolean) as string[]
