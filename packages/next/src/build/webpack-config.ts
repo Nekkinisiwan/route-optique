@@ -1522,7 +1522,7 @@ export default async function getBaseWebpackConfig(
                   and: [
                     aliasCodeConditionTest,
                     {
-                      not: [optOutBundlingPackageRegex, asyncStoragesRegex],
+                      not: [asyncStoragesRegex],
                     },
                   ],
                 },
@@ -1606,7 +1606,7 @@ export default async function getBaseWebpackConfig(
                       and: [
                         aliasCodeConditionTest,
                         {
-                          not: [optOutBundlingPackageRegex, asyncStoragesRegex],
+                          not: [asyncStoragesRegex],
                         },
                       ],
                     },
