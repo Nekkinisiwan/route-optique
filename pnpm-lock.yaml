@@ -1399,14 +1399,14 @@ importers:
         specifier: npm:loader-utils@2.0.4
         version: loader-utils@2.0.4
       loader-utils3:
-        specifier: npm:loader-utils@3.1.3
-        version: loader-utils@3.1.3
+        specifier: npm:loader-utils@3.3.1
+        version: loader-utils@3.3.1
       lodash.curry:
         specifier: 4.1.1
         version: 4.1.1
       mini-css-extract-plugin:
-        specifier: 2.4.4
-        version: 2.4.4(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
+        specifier: 2.9.4
+        version: 2.9.4(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
       msw:
         specifier: 2.3.0
         version: 2.3.0(typescript@5.8.2)
@@ -1495,14 +1495,14 @@ importers:
         specifier: 2.5.0
         version: 2.5.0
       sass-loader:
-        specifier: 15.0.0
-        version: 15.0.0(@rspack/core@1.4.5(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
+        specifier: 16.0.5
+        version: 16.0.5(@rspack/core@1.4.5(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
-      schema-utils3:
-        specifier: npm:schema-utils@3.0.0
-        version: schema-utils@3.0.0
+      schema-utils4:
+        specifier: npm:schema-utils@4.3.2
+        version: schema-utils@4.3.2
       semver:
         specifier: 7.3.2
         version: 7.3.2
@@ -6772,9 +6772,6 @@ packages:
   big.js@5.2.2:
     resolution: {integrity: sha512-vyL2OymJxmarO8gxMr0mhChsO9QGwhynfuu4+MHTAW6czfq9humCB7rKpUjDd9YUiDPU4mzpyupFSvOClAwbmQ==}
 
-  big.js@6.2.1:
-    resolution: {integrity: sha512-bCtHMwL9LeDIozFn+oNhhFoq+yQ3BNdnsLSASUxLciOb1vgvpHsIO1dsENiGMgbb4SkP5TrzWzRiLddn8ahVOQ==}
-
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
     engines: {node: '>=8'}
@@ -11362,8 +11359,8 @@ packages:
     resolution: {integrity: sha512-xXqpXoINfFhgua9xiqD8fPFHgkoq1mmmpE92WlDbm9rNRd/EbRb+Gqf908T2DMfuHjjJlksiK2RbHVOdD/MqSw==}
     engines: {node: '>=8.9.0'}
 
-  loader-utils@3.1.3:
-    resolution: {integrity: sha512-iQeN+4aRVLiJU1J2BNTRg2cjhuFXWUX9DmvTDDtuwAm+ye6cMpUTLaPZmCFlZOrcDg93C9a17e/Hr+nQ9lquYw==}
+  loader-utils@3.3.1:
+    resolution: {integrity: sha512-FMJTLMXfCLMLfJxcX9PFqX5qD88Z5MRGaZCVzfuqeZSPsyiBzs+pahDQjbIWz2QIzPZz0NX9Zy4FX3lmK6YHIg==}
     engines: {node: '>= 12.13.0'}
 
   locate-path@2.0.0:
@@ -12043,8 +12040,8 @@ packages:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
 
-  mini-css-extract-plugin@2.4.4:
-    resolution: {integrity: sha512-UJ+aNuFQaQaECu7AamlWOBLj2cJ6XSGU4zNiqXeZ7lZLe5VD0DoSPWFbWArXueo+6FZVbgHzpX9lUIaBIDLuYg==}
+  mini-css-extract-plugin@2.9.4:
+    resolution: {integrity: sha512-ZWYT7ln73Hptxqxk2DxPU9MmapXRhxkJD6tkSR04dnQxm8BGu2hzgKLugK5yySD97u/8yy7Ma7E76k9ZdvtjkQ==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
       webpack: 5.101.3
@@ -13976,10 +13973,6 @@ packages:
     resolution: {integrity: sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==}
     engines: {node: '>=6'}
 
-  punycode@2.3.1:
-    resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
-    engines: {node: '>=6'}
-
   pupa@2.1.1:
     resolution: {integrity: sha512-l1jNAspIBSFqbT+y+5FosojNpVpF94nlI+wDUpqP9enwOTfHx9f0gh5nB96vl+6yTpsJsypeNrwfzPrKuHB41A==}
     engines: {node: '>=8'}
@@ -14746,8 +14739,8 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  sass-loader@15.0.0:
-    resolution: {integrity: sha512-mbXAL7sI/fgt3skXR6xHxtKkaGyxRrGf7zrU4hLLWxBDJEcAe0QsoNy92qKttCb3zfMniTkU2kD9yakUKtW7vQ==}
+  sass-loader@16.0.5:
+    resolution: {integrity: sha512-oL+CMBXrj6BZ/zOq4os+UECPL+bWqt6OAC6DWS8Ln8GZRcMDjlJ4JC3FBDuHJdYaFWIdKNIBYmtZtK2MaMkNIw==}
     engines: {node: '>= 18.12.0'}
     peerDependencies:
       '@rspack/core': 0.x || 1.x
@@ -14797,10 +14790,6 @@ packages:
   schema-utils@2.7.1:
     resolution: {integrity: sha512-SHiNtMOUGWBQJwzISiVYKu82GiV4QYGePp3odlY1tuKO7gPtphAT5R/py0fA6xtbgLL/RvtJZnU9b8s0F1q0Xg==}
     engines: {node: '>= 8.9.0'}
-
-  schema-utils@3.0.0:
-    resolution: {integrity: sha512-6D82/xSzO094ajanoOSbe4YvXWMfn2A//8Y1+MUqFAJul5Bs+yn36xbK9OtNDcRVSBJ9jjeoXftM6CfztsjOAA==}
-    engines: {node: '>= 10.13.0'}
 
   schema-utils@3.2.0:
     resolution: {integrity: sha512-0zTyLGyDJYd/MBxG1AhJkKa6fpEBds4OQO2ut0w7OYG+ZGhGea09lijvzsqegYSik88zc7cUtIlnnO+/BvD6gQ==}
@@ -22989,8 +22978,6 @@ snapshots:
 
   big.js@5.2.2: {}
 
-  big.js@6.2.1: {}
-
   binary-extensions@2.3.0: {}
 
   binary-install@1.1.0:
@@ -28997,9 +28984,7 @@ snapshots:
       emojis-list: 3.0.0
       json5: 2.2.3
 
-  loader-utils@3.1.3:
-    dependencies:
-      big.js: 6.2.1
+  loader-utils@3.3.1: {}
 
   locate-path@2.0.0:
     dependencies:
@@ -30164,9 +30149,10 @@ snapshots:
 
   min-indent@1.0.1: {}
 
-  mini-css-extract-plugin@2.4.4(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)):
+  mini-css-extract-plugin@2.9.4(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)):
     dependencies:
-      schema-utils: 3.2.0
+      schema-utils: 4.3.2
+      tapable: 2.2.1
       webpack: 5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)
 
   minimalistic-assert@1.0.1: {}
@@ -32263,8 +32249,6 @@ snapshots:
 
   punycode@2.1.1: {}
 
-  punycode@2.3.1: {}
-
   pupa@2.1.1:
     dependencies:
       escape-goat: 2.1.1
@@ -33242,7 +33226,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass-loader@15.0.0(@rspack/core@1.4.5(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)):
+  sass-loader@16.0.5(@rspack/core@1.4.5(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.101.3(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)):
     dependencies:
       neo-async: 2.6.2
     optionalDependencies:
@@ -33287,12 +33271,6 @@ snapshots:
   scheduler@0.27.0-canary-4123f6b7-20250826: {}
 
   schema-utils@2.7.1:
-    dependencies:
-      '@types/json-schema': 7.0.12
-      ajv: 6.12.6
-      ajv-keywords: 3.5.2(ajv@6.12.6)
-
-  schema-utils@3.0.0:
     dependencies:
       '@types/json-schema': 7.0.12
       ajv: 6.12.6
@@ -35062,7 +35040,7 @@ snapshots:
 
   uri-js@4.4.1:
     dependencies:
-      punycode: 2.3.1
+      punycode: 2.1.1
 
   url-parse-lax@1.0.0:
     dependencies:
