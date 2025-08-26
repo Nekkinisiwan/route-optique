@@ -244,6 +244,10 @@ export async function createApp({
       turbopack,
       rspack,
     })
+    hasPackageJson = existsSync(packageJsonPath)
+  }
+
+  if (hasPackageJson) {
   }
 
   if (disableGit) {
