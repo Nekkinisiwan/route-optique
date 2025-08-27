@@ -1,0 +1,92 @@
+---
+title: setTagStale
+description: API Reference for the setTagStale function.
+---
+
+`setTagStale` allows you to mark a cache tag and any pages that use that tag as stale for background revalidation on the next request, instead of the blocking revalidation used by [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag).
+
+## Usage
+
+`setTagStale` can be called in Server Functions and Route Handlers.
+
+`setTagStale` cannot be called in Client Components or Middleware, as it only works in server environments.
+
+> **Good to know**: Unlike [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) which performs blocking revalidation, `setTagStale` marks tags for background revalidation that occurs on the next request. This provides better performance by avoiding blocking operations during user requests.
+
+## Parameters
+
+```tsx
+setTagStale(tags: string | string[]): void;
+```
+
+- `tags`: A string or array of strings representing the cache tags associated with the data you want to mark as stale. Each tag must not exceed 256 characters and values are case-sensitive.
+
+## Returns
+
+`setTagStale` does not return a value.
+
+## Relationship with `revalidateTag`
+
+`setTagStale` provides an alternative to [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) for different revalidation strategies:
+
+- `setTagStale` marks a tag and pages using that tag for background revalidation on the next request
+- `revalidateTag` performs blocking revalidation that happens immediately when the tagged data is accessed
+- Use `setTagStale` when you want better performance by avoiding blocking operations during user requests and don't need read your write behavior.
+
+## Examples
+
+### Server Action with Single Tag
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { setTagStale } from 'next/cache'
+
+export default async function markPostsStale() {
+  // Mark posts tag for background revalidation on next request
+  setTagStale('posts')
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { setTagStale } from 'next/cache'
+
+export default async function markPostsStale() {
+  // Mark posts tag for background revalidation on next request
+  setTagStale('posts')
+}
+```
+
+### Route Handler
+
+```ts filename="app/api/mark-stale/route.ts" switcher
+import { setTagStale } from 'next/cache'
+
+export async function POST(request: Request) {
+  const { tags } = await request.json()
+
+  setTagStale(tags)
+
+  return Response.json({ message: 'Tags marked for background revalidation' })
+}
+```
+
+```js filename="app/api/mark-stale/route.js" switcher
+import { setTagStale } from 'next/cache'
+
+export async function POST(request) {
+  const { tags } = await request.json()
+
+  setTagStale(tags)
+
+  return Response.json({ message: 'Tags marked for background revalidation' })
+}
+```
+
+## Version History
+
+| Version   | Changes                   |
+| --------- | ------------------------- |
+| `v15.5.0` | `setTagStale` introduced. |

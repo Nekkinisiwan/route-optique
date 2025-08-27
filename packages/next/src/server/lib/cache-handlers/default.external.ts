@@ -10,8 +10,8 @@
 import { LRUCache } from '../lru-cache'
 import type { CacheEntry, CacheHandlerV2 } from './types'
 import {
-  isStale,
   tagsManifest,
+  isStaleOrExpired,
 } from '../incremental-cache/tags-manifest.external'
 
 type PrivateCacheEntry = {
@@ -73,16 +73,18 @@ const DefaultCacheHandler: CacheHandlerV2 = {
 
       return undefined
     }
+    const { state } = isStaleOrExpired(entry.tags, entry.timestamp)
 
-    if (isStale(entry.tags, entry.timestamp)) {
-      debug?.('get', cacheKey, 'had stale tag')
-
+    if (state === 'EXPIRED') {
+      debug?.('get', cacheKey, 'had expired tag')
       return undefined
     }
+    const entryTimestamp = state === 'STALE' ? -1 : entry.timestamp
     const [returnStream, newSaved] = entry.value.tee()
     entry.value = newSaved
 
     debug?.('get', cacheKey, 'found', {
+      tagState: state,
       tags: entry.tags,
       timestamp: entry.timestamp,
       revalidate: entry.revalidate,
@@ -91,6 +93,7 @@ const DefaultCacheHandler: CacheHandlerV2 = {
 
     return {
       ...entry,
+      timestamp: entryTimestamp,
       value: returnStream,
     }
   },
@@ -140,7 +143,15 @@ const DefaultCacheHandler: CacheHandlerV2 = {
 
   async getExpiration(...tags) {
     const expiration = Math.max(
-      ...tags.map((tag) => tagsManifest.get(tag) ?? 0)
+      ...tags.map((tag) => {
+        const entry = tagsManifest.get(tag)
+        if (typeof entry === 'number') {
+          return entry
+        } else if (entry && typeof entry === 'object') {
+          return entry.expire || 0
+        }
+        return 0
+      })
     )
 
     debug?.('getExpiration', { tags, expiration })
@@ -153,8 +164,38 @@ const DefaultCacheHandler: CacheHandlerV2 = {
     debug?.('expireTags', { tags, timestamp })
 
     for (const tag of tags) {
-      // TODO: update file-system-cache?
-      tagsManifest.set(tag, timestamp)
+      const existing = tagsManifest.get(tag)
+
+      if (!existing) {
+        // New tag - set expire timestamp
+        tagsManifest.set(tag, { expire: timestamp })
+      } else if (typeof existing === 'number') {
+        // Legacy format - convert to new format and update expire
+        tagsManifest.set(tag, { expire: timestamp })
+      } else {
+        // New format - update expire timestamp
+        existing.expire = timestamp
+      }
+    }
+  },
+
+  async setTagStale(...tags) {
+    const timestamp = Math.round(performance.timeOrigin + performance.now())
+    debug?.('setTagStale', { tags, timestamp })
+
+    for (const tag of tags) {
+      const existing = tagsManifest.get(tag)
+
+      if (!existing) {
+        // New tag - set stale timestamp
+        tagsManifest.set(tag, { stale: timestamp })
+      } else if (typeof existing === 'number') {
+        // Legacy format - convert to new format, preserve as expire and add stale
+        tagsManifest.set(tag, { expire: existing, stale: timestamp })
+      } else {
+        // New format - update stale timestamp, preserve existing expire
+        existing.stale = timestamp
+      }
     }
   },
 }
