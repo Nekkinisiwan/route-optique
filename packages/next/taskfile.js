@@ -1889,7 +1889,7 @@ export async function ncc_sass_loader(task, opts) {
       packageName: 'sass-loader',
       externals: {
         ...externals,
-        'schema-utils': externals['schema-utils3'],
+        'schema-utils': externals['schema-utils4'],
         'loader-utils': externals['loader-utils2'],
       },
       target: 'es5',
@@ -1910,16 +1910,16 @@ export async function ncc_schema_utils2(task, opts) {
     .target('src/compiled/schema-utils2')
 }
 // eslint-disable-next-line camelcase
-externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
-export async function ncc_schema_utils3(task, opts) {
+externals['schema-utils4'] = 'next/dist/compiled/schema-utils4'
+export async function ncc_schema_utils4(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('schema-utils3')))
+    .source(relative(__dirname, require.resolve('schema-utils4')))
     .ncc({
       packageName: 'schema-utils',
-      bundleName: 'schema-utils3',
+      bundleName: 'schema-utils4',
       externals,
     })
-    .target('src/compiled/schema-utils3')
+    .target('src/compiled/schema-utils4')
 }
 externals['semver'] = 'next/dist/compiled/semver'
 export async function ncc_semver(task, opts) {
@@ -2111,7 +2111,6 @@ export async function ncc_minimatch(task, opts) {
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
   'next/dist/compiled/mini-css-extract-plugin'
-
 export async function ncc_mini_css_extract_plugin(task, opts) {
   await task
     .source(
@@ -2124,8 +2123,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
-        'webpack-sources': externals['webpack-sources1'],
+        'schema-utils': externals['schema-utils4'],
       },
     })
     .target('src/compiled/mini-css-extract-plugin')
@@ -2143,7 +2141,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './hmr': './hmr',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': externals['schema-utils4'],
       },
     })
     .target('src/compiled/mini-css-extract-plugin/hmr')
@@ -2154,8 +2152,17 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
+        'schema-utils': externals['schema-utils4'],
       },
+    })
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Refers to copied satori types
+      file.data = source.replace(
+        /['"]hotModuleReplacement\.js['"]/g,
+        '"hmr/hotModuleReplacement.js"'
+      )
     })
     .target('src/compiled/mini-css-extract-plugin')
 }
@@ -2172,7 +2179,7 @@ export async function ncc_ua_parser_js(task, opts) {
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,
-    'schema-utils': externals['schema-utils3'],
+    'schema-utils': externals['schema-utils4'],
     'webpack-sources': externals['webpack-sources3'],
   }
   for (const pkg of Object.keys(webpackBundlePackages)) {
@@ -2184,7 +2191,13 @@ export async function ncc_webpack_bundle5(task, opts) {
       packageName: 'webpack',
       bundleName: 'webpack',
       customEmit(path) {
-        if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
+        if (
+          /HotModuleReplacement\.runtime|JavascriptHotModuleReplacement\.runtime/.test(
+            path
+          )
+        ) {
+          return `'./${basename(path)}'`
+        }
       },
       externals: bundleExternals,
       target: 'es5',
@@ -2370,7 +2383,7 @@ export async function ncc(task, opts) {
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
         'ncc_schema_utils2',
-        'ncc_schema_utils3',
+        'ncc_schema_utils4',
         'ncc_semver',
         'ncc_send',
         'ncc_source_map',
