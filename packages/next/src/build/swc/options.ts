@@ -58,7 +58,6 @@ function getBaseSWCOptions({
   jest,
   development,
   hasReactRefresh,
-  globalWindow,
   esm,
   modularizeImports,
   swcPlugins,
@@ -79,7 +78,6 @@ function getBaseSWCOptions({
   jest?: boolean
   development: boolean
   hasReactRefresh: boolean
-  globalWindow: boolean
   esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
@@ -159,9 +157,6 @@ function getBaseSWCOptions({
           globals: jest
             ? null
             : {
-                typeofs: {
-                  window: globalWindow ? 'object' : 'undefined',
-                },
                 envs: {
                   NODE_ENV: development ? '"development"' : '"production"',
                 },
@@ -303,7 +298,6 @@ function getEmotionOptions(
 }
 
 export function getJestSWCOptions({
-  isServer,
   filename,
   esm,
   modularizeImports,
@@ -331,7 +325,6 @@ export function getJestSWCOptions({
     jest: true,
     development: false,
     hasReactRefresh: false,
-    globalWindow: !isServer,
     modularizeImports,
     swcPlugins,
     compilerOptions,
@@ -422,7 +415,6 @@ export function getLoaderSWCOptions({
   let baseOptions: any = getBaseSWCOptions({
     filename,
     development,
-    globalWindow: !isServer,
     hasReactRefresh,
     modularizeImports,
     swcPlugins,
@@ -534,14 +526,6 @@ export function getLoaderSWCOptions({
     options.isPageFile = false
     options.optimizeServerReact = undefined
     options.cjsRequireOptimizer = undefined
-    // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
-    // e.g. typeof window could result differently in js worker or browser.
-    if (
-      options.jsc.transform.optimizer.globals?.typeofs &&
-      !filename.includes(nextDirname)
-    ) {
-      delete options.jsc.transform.optimizer.globals.typeofs.window
-    }
   }
 
   return options
