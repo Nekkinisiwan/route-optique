@@ -1,8 +1,8 @@
 import Link from 'next/link'
-
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
 
 export default async function Page(props: PageProps<'/loading-scroll'>) {
+  await connection()
   const search = await props.searchParams
   const skipSleep = !!search.skipSleep
   if (!skipSleep) {
