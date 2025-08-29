@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+
 export default function Layout({ children }: any) {
   return (
     <html
@@ -6,7 +8,9 @@ export default function Layout({ children }: any) {
       }}
     >
       <head />
-      <body style={{ margin: 0 }}>{children}</body>
+      <body style={{ margin: 0 }}>
+        <Suspense>{children}</Suspense>
+      </body>
     </html>
   )
 }
