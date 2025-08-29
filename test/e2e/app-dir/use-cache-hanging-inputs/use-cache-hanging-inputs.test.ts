@@ -28,7 +28,10 @@ describe('use-cache-hanging-inputs', () => {
     describe('when an uncached promise is used inside of "use cache"', () => {
       it('should show an error toast after a timeout', async () => {
         const outputIndex = next.cliOutput.length
-        const browser = await next.browser('/uncached-promise')
+        const browser = await next.browser('/uncached-promise', {
+          // Allow for the warmup render to complete and then the main render.
+          defaultNavigationTimeout: (10 + 50 * 2) * 1000,
+        })
 
         // The request is pending while we stall on the hanging inputs, and
         // playwright will wait for the load even before continuing. So we don't
@@ -82,7 +85,10 @@ describe('use-cache-hanging-inputs', () => {
     describe('when an uncached promise is used inside of a nested "use cache"', () => {
       it('should show an error toast after a timeout', async () => {
         const outputIndex = next.cliOutput.length
-        const browser = await next.browser('/uncached-promise-nested')
+        const browser = await next.browser('/uncached-promise-nested', {
+          // Allow for the warmup render to complete and then the main render.
+          defaultNavigationTimeout: (10 + 50 * 2) * 1000,
+        })
 
         // The request is pending while we stall on the hanging inputs, and
         // playwright will wait for the load even before continuing. So we don't
@@ -136,7 +142,10 @@ describe('use-cache-hanging-inputs', () => {
     describe('when a "use cache" function is closing over an uncached promise', () => {
       it('should show an error toast after a timeout', async () => {
         const outputIndex = next.cliOutput.length
-        const browser = await next.browser('/bound-args')
+        const browser = await next.browser('/bound-args', {
+          // Allow for the warmup render to complete and then the main render.
+          defaultNavigationTimeout: (10 + 50 * 2) * 1000,
+        })
 
         // The request is pending while we stall on the hanging inputs, and
         // playwright will wait for the load even before continuing. So we don't
@@ -190,7 +199,10 @@ describe('use-cache-hanging-inputs', () => {
 
     describe('when an error is thrown', () => {
       it('should show an error overlay with only one error', async () => {
-        const browser = await next.browser('/error')
+        const browser = await next.browser('/error', {
+          // Allow for the warmup render to complete and then the main render.
+          defaultNavigationTimeout: (10 + 50 * 2) * 1000,
+        })
 
         await assertHasRedbox(browser)
 
@@ -200,7 +212,7 @@ describe('use-cache-hanging-inputs', () => {
 
         expect({ count, title, description }).toEqual({
           count: 1,
-          title: 'Runtime Error\nCache',
+          title: 'Runtime Error\nPrerender',
           description: 'kaputt!',
         })
       })

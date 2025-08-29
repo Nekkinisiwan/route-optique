@@ -9,7 +9,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
         module.exports = {
           htmlLimitedBots: /MyBot/i,
             experimental: {
-            ppr: 'incremental',
+            cacheComponents: true,
           }
         }
       `,
@@ -32,6 +32,21 @@ describe('app-dir - metadata-streaming-config-customized', () => {
 
     expect(bypassConfigs).toMatchInlineSnapshot(`
      {
+       "/": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
+       "/_not-found": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
+       "/dynamic": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
        "/ppr": {
          "key": "user-agent",
          "type": "header",
