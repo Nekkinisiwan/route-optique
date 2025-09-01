@@ -1290,7 +1290,10 @@
         });
         weakResponse = response._debugChannel;
         void 0 !== weakResponse &&
-          (closeDebugChannel(weakResponse), (response._debugChannel = void 0));
+          (closeDebugChannel(weakResponse),
+          (response._debugChannel = void 0),
+          null !== debugChannelRegistry &&
+            debugChannelRegistry.unregister(response));
       }
     }
     function nullRefGetter() {
@@ -1312,7 +1315,7 @@
         return "<...>";
       }
     }
-    function initializeElement(response, element) {
+    function initializeElement(response, element, lazyType) {
       var stack = element._debugStack,
         owner = element._owner;
       null === owner && (element._owner = response._debugRootOwner);
@@ -1349,12 +1352,18 @@
           : (normalizedStackTrace = env.run(stack)));
       element._debugTask = normalizedStackTrace;
       null !== owner && initializeFakeStack(response, owner);
+      lazyType &&
+        lazyType._store &&
+        lazyType._store.validated &&
+        !element._store.validated &&
+        (element._store.validated = lazyType._store.validated);
       Object.freeze(element.props);
     }
     function createLazyChunkWrapper(chunk) {
       var lazyType = {
         $$typeof: REACT_LAZY_TYPE,
         _payload: chunk,
+        _store: { validated: 0 },
         _init: readChunk
       };
       chunk = chunk._debugInfo || (chunk._debugInfo = []);
@@ -2075,7 +2084,7 @@
       debugChannel &&
         (null === debugChannelRegistry
           ? (closeDebugChannel(debugChannel), (this._debugChannel = void 0))
-          : debugChannelRegistry.register(this, debugChannel));
+          : debugChannelRegistry.register(this, debugChannel, this));
       this._fromJSON = createFromJSONCallback(this);
     }
     function createStreamState() {
@@ -3070,7 +3079,7 @@
                 initializingHandler = validated.parent;
                 if (validated.errored) {
                   key = new ReactPromise("rejected", null, validated.reason);
-                  initializeElement(response, value);
+                  initializeElement(response, value, null);
                   validated = {
                     name: getComponentNameFromType(value.type) || "",
                     owner: value._owner
@@ -3086,13 +3095,19 @@
                   key = new ReactPromise("blocked", null, null);
                   validated.value = value;
                   validated.chunk = key;
-                  value = initializeElement.bind(null, response, value);
+                  validated = createLazyChunkWrapper(key);
+                  value = initializeElement.bind(
+                    null,
+                    response,
+                    value,
+                    validated
+                  );
                   key.then(value, value);
-                  value = createLazyChunkWrapper(key);
+                  value = validated;
                   break b;
                 }
               }
-              initializeElement(response, value);
+              initializeElement(response, value, null);
             }
           return value;
         }
@@ -3480,10 +3495,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-8d7b5e49-20250827",
+      version: "19.2.0-canary-bb6f0c8d-20250901",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-8d7b5e49-20250827",
+      reconcilerVersion: "19.2.0-canary-bb6f0c8d-20250901",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
