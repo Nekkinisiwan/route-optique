@@ -889,7 +889,7 @@ export default abstract class Server<
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${method} ${req.url}`,
+          spanName: `${method}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
@@ -947,8 +947,8 @@ export default abstract class Server<
             } else {
               span.updateName(
                 isRSCRequest
-                  ? `RSC ${method} ${req.url}`
-                  : `${method} ${req.url}`
+                  ? `RSC ${method}}`
+                  : `${method}`
               )
             }
           })
