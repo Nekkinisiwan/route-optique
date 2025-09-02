@@ -1389,6 +1389,7 @@ export default async function loadConfig(
     let userConfigModule: any
     try {
       const envBefore = Object.assign({}, process.env)
+      const shouldTranspile = configFileName === 'next.config.ts'
 
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
@@ -1398,7 +1399,7 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
-      } else if (configFileName === 'next.config.ts') {
+      } else if (shouldTranspile) {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
           configFileName,

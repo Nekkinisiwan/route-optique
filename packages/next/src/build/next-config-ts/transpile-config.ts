@@ -1,16 +1,26 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
 
-import { resolve } from 'node:path'
-import { readFile } from 'node:fs/promises'
+import semver from 'next/dist/compiled/semver'
+
+import { join, resolve } from 'path'
+import { readFile } from 'fs/promises'
+import { register } from 'module'
+import { pathToFileURL } from 'url'
+
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { warn } from '../output/log'
 import { installDependencies } from '../../lib/install-dependencies'
 
-function resolveSWCOptions(
-  cwd: string,
+export function resolveSWCOptions({
+  cwd,
+  compilerOptions,
+  type,
+}: {
+  cwd: string
   compilerOptions: CompilerOptions
-): SWCOptions {
+  type: 'commonjs' | 'es6'
+}): SWCOptions {
   return {
     jsc: {
       parser: {
@@ -24,15 +34,30 @@ function resolveSWCOptions(
           ? // If paths is given, baseUrl is required.
             { baseUrl: cwd }
           : {}),
+      ...(type === 'es6'
+        ? {
+            experimental: {
+              keepImportAssertions: true,
+              // Without this option, "assert" assertion also transpiles to "with"
+              // attribute, which will throw if Node.js version does not support
+              // "with" token. The switch from "assert" to "with" was held at
+              // v21.0.0, v20.10.0, and v18.20.0.
+              // Add this option if current Node.js version < 20.10.0
+              emitAssertForImportAttributes: semver.lt(
+                process?.versions?.node ?? '20.9.0',
+                '20.10.0'
+              ),
+            },
+          }
+        : {}),
     },
     module: {
-      type: 'commonjs',
+      type,
     },
-    isModule: 'unknown',
     env: {
       targets: {
         // Setting the Node.js version can reduce unnecessary code generation.
-        node: process?.versions?.node ?? '20.19.0',
+        node: process?.versions?.node ?? '20.9.0',
       },
     },
   } satisfies SWCOptions
@@ -117,6 +142,15 @@ export async function transpileConfig({
     await verifyTypeScriptSetup(cwd, configFileName)
     const compilerOptions = await getTsConfig(cwd)
 
+    let pkgJson: Record<string, string> = {}
+    try {
+      pkgJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
+    } catch {}
+
+    if (pkgJson.type === 'module') {
+      return handleESM({ cwd, nextConfigPath, compilerOptions })
+    }
+
     return handleCJS({ cwd, nextConfigPath, compilerOptions })
   } catch (cause) {
     throw new Error(`Failed to transpile "${configFileName}".`, {
@@ -134,7 +168,11 @@ async function handleCJS({
   nextConfigPath: string
   compilerOptions: CompilerOptions
 }) {
-  const swcOptions = resolveSWCOptions(cwd, compilerOptions)
+  const swcOptions = resolveSWCOptions({
+    cwd,
+    compilerOptions,
+    type: 'commonjs',
+  })
   let hasRequire = false
   try {
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
@@ -157,5 +195,30 @@ async function handleCJS({
     if (hasRequire) {
       deregisterHook()
     }
+  }
+}
+
+let hasRegistered = false
+
+async function handleESM(workerData: {
+  cwd: string
+  compilerOptions: CompilerOptions
+  nextConfigPath: string
+}) {
+  try {
+    if (!hasRegistered) {
+      register(pathToFileURL(join(__dirname, 'loader.js')).href, {
+        parentURL: pathToFileURL(workerData.cwd).href,
+        data: {
+          cwd: workerData.cwd,
+          compilerOptions: workerData.compilerOptions,
+        },
+      })
+      hasRegistered = true
+    }
+
+    return (await import(pathToFileURL(workerData.nextConfigPath).href)).default
+  } catch (error) {
+    throw error
   }
 }
