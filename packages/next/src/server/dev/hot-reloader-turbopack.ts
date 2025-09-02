@@ -413,7 +413,51 @@ export async function createHotReloaderTurbopack(
   let hmrHash = 0
 
   const clients = new Set<ws>()
+  const clientsByRequestId = new Map<string, ws>()
   const clientStates = new WeakMap<ws, ClientState>()
+
+  const reactDebugChannelsByRequestId = new Map<
+    string,
+    { readable: ReadableStream<Uint8Array> }
+  >()
+
+  function connectReactDebugChannel(client: ws, requestId: string) {
+    const debugChannel = reactDebugChannelsByRequestId.get(requestId)
+
+    if (debugChannel) {
+      const reader = debugChannel.readable.getReader()
+
+      const stop = () => {
+        sendToClient(client, {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+          requestId,
+          // A null chunk signals to the client that no more chunks will be
+          // sent for this request.
+          base64EncodedChunk: null,
+        })
+
+        reactDebugChannelsByRequestId.delete(requestId)
+      }
+
+      const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
+        if (entry.done) {
+          stop()
+        } else {
+          sendToClient(client, {
+            // TODO: Send as binary frame, with the action type and request ID
+            // as header bytes.
+            action: HMR_ACTIONS_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+            requestId,
+            base64EncodedChunk: Buffer.from(entry.value).toString('base64'),
+          })
+
+          reader.read().then(progress, stop)
+        }
+      }
+
+      reader.read().then(progress, stop)
+    }
+  }
 
   function sendToClient(client: ws, payload: HMR_ACTION_TYPES) {
     client.send(JSON.stringify(payload))
@@ -749,6 +793,15 @@ export async function createHotReloaderTurbopack(
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
         clients.add(client)
+
+        const requestId = req.url
+          ? new URL(req.url, 'http://n').searchParams.get('id')
+          : null
+
+        if (requestId) {
+          clientsByRequestId.set(requestId, client)
+        }
+
         clientStates.set(client, {
           clientIssues,
           hmrPayloads: new Map(),
@@ -763,6 +816,10 @@ export async function createHotReloaderTurbopack(
           }
           clientStates.delete(client)
           clients.delete(client)
+
+          if (requestId) {
+            clientsByRequestId.delete(requestId)
+          }
         })
 
         client.addEventListener('message', async ({ data }) => {
@@ -901,14 +958,32 @@ export async function createHotReloaderTurbopack(
           }
 
           sendToClient(client, sync)
+
+          if (requestId) {
+            connectReactDebugChannel(client, requestId)
+          }
         })()
       })
     },
 
     send(action) {
       const payload = JSON.stringify(action)
+
       for (const client of clients) {
         client.send(payload)
+      }
+    },
+
+    setReactDebugChannel(debugChannel, htmlRequestId, requestId) {
+      // Store the debug channel, regardless of whether the client is connected.
+      reactDebugChannelsByRequestId.set(requestId, debugChannel)
+
+      // If the client is connected, we can connect the debug channel
+      // immediately. Otherwise, we'll do that when the client connects.
+      const client = clientsByRequestId.get(htmlRequestId)
+
+      if (client) {
+        connectReactDebugChannel(client, requestId)
       }
     },
 
@@ -1147,6 +1222,7 @@ export async function createHotReloaderTurbopack(
         wsClient.terminate()
       }
       clients.clear()
+      clientsByRequestId.clear()
     },
   }
 

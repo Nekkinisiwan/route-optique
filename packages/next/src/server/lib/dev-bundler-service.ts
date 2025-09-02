@@ -106,6 +106,18 @@ export class DevBundlerService {
     })
   }
 
+  public setReactDebugChannel(
+    debugChannel: { readable: ReadableStream<Uint8Array> },
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    this.bundler.hotReloader.setReactDebugChannel(
+      debugChannel,
+      htmlRequestId,
+      requestId
+    )
+  }
+
   public close() {
     this.bundler.hotReloader.close()
   }

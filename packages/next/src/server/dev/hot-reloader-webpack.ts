@@ -95,6 +95,7 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -269,6 +270,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
 
+  private reactDebugChannelsByRequestId = new Map<
+    string,
+    { readable: ReadableStream<Uint8Array> }
+  >()
+
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
   public multiCompiler?: webpack.MultiCompiler
@@ -331,6 +337,44 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
+  }
+
+  private connectReactDebugChannel(client: ws, requestId: string) {
+    const debugChannel = this.reactDebugChannelsByRequestId.get(requestId)
+
+    if (debugChannel) {
+      const reader = debugChannel.readable.getReader()
+
+      const stop = () => {
+        this.webpackHotMiddleware?.publishToClient(client, {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+          requestId,
+          // A null chunk signals to the client that no more chunks will be
+          // sent for this request.
+          base64EncodedChunk: null,
+        })
+
+        this.reactDebugChannelsByRequestId.delete(requestId)
+      }
+
+      const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
+        if (entry.done) {
+          stop()
+        } else {
+          this.webpackHotMiddleware?.publishToClient(client, {
+            // TODO: Send as binary frame, with the action type and request ID
+            // as header bytes.
+            action: HMR_ACTIONS_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+            requestId,
+            base64EncodedChunk: Buffer.from(entry.value).toString('base64'),
+          })
+
+          reader.read().then(progress, stop)
+        }
+      }
+
+      reader.read().then(progress, stop)
+    }
   }
 
   public async run(
@@ -438,7 +482,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     callback: (client: ws.WebSocket) => void
   ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      this.webpackHotMiddleware?.onHMR(client)
+      const requestId = req.url
+        ? new URL(req.url, 'http://n').searchParams.get('id')
+        : null
+
+      if (!this.webpackHotMiddleware) {
+        throw new InvariantError('Did not start HotReloaderWebpack.')
+      }
+
+      this.webpackHotMiddleware.onHMR(client, requestId)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
       callback(client)
 
@@ -605,6 +657,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           // invalid WebSocket message
         }
       })
+
+      if (requestId) {
+        this.connectReactDebugChannel(client, requestId)
+      }
     })
   }
 
@@ -1661,6 +1717,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   public send(action: HMR_ACTION_TYPES): void {
     this.webpackHotMiddleware!.publish(action)
+  }
+
+  public setReactDebugChannel(
+    debugChannel: { readable: ReadableStream<Uint8Array> },
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    // Store the debug channel, regardless of whether the client is connected.
+    this.reactDebugChannelsByRequestId.set(requestId, debugChannel)
+
+    // If the client is connected, we can connect the debug channel immediately.
+    // Otherwise, we'll do that when the client connects.
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+
+    if (client) {
+      this.connectReactDebugChannel(client, requestId)
+    }
   }
 
   public async ensurePage({

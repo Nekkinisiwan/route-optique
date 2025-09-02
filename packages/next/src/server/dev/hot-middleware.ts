@@ -68,36 +68,10 @@ function getStatsForSyncEvent(
   return serverStats.ts > clientStats.ts ? serverStats.stats : clientStats.stats
 }
 
-class EventStream {
-  clients: Set<ws>
-  constructor() {
-    this.clients = new Set()
-  }
-
-  close() {
-    for (const wsClient of this.clients) {
-      // it's okay to not cleanly close these websocket connections, this is dev
-      wsClient.terminate()
-    }
-    this.clients.clear()
-  }
-
-  handler(client: ws) {
-    this.clients.add(client)
-    client.addEventListener('close', () => {
-      this.clients.delete(client)
-    })
-  }
-
-  publish(payload: any) {
-    for (const wsClient of this.clients) {
-      wsClient.send(JSON.stringify(payload))
-    }
-  }
-}
-
 export class WebpackHotMiddleware {
-  eventStream: EventStream
+  private clients = new Set<ws>()
+  private clientsByRequestId: Map<string, ws> = new Map()
+
   clientLatestStats: { ts: number; stats: webpack.Stats } | null
   middlewareLatestStats: { ts: number; stats: webpack.Stats } | null
   serverLatestStats: { ts: number; stats: webpack.Stats } | null
@@ -112,7 +86,6 @@ export class WebpackHotMiddleware {
     devtoolsFrontendUrl: string | undefined,
     devToolsConfig: DevToolsConfig
   ) {
-    this.eventStream = new EventStream()
     this.clientLatestStats = null
     this.middlewareLatestStats = null
     this.serverLatestStats = null
@@ -198,9 +171,22 @@ export class WebpackHotMiddleware {
    * and we still want to show the client overlay with the error while
    * the error page should be rendered just fine.
    */
-  onHMR = (client: ws) => {
+  onHMR = (client: ws, requestId: string | null) => {
     if (this.closed) return
-    this.eventStream.handler(client)
+
+    this.clients.add(client)
+
+    if (requestId) {
+      this.clientsByRequestId.set(requestId, client)
+    }
+
+    client.addEventListener('close', () => {
+      this.clients.delete(client)
+
+      if (requestId) {
+        this.clientsByRequestId.delete(requestId)
+      }
+    })
 
     const syncStats = getStatsForSyncEvent(
       this.clientLatestStats,
@@ -250,15 +236,43 @@ export class WebpackHotMiddleware {
     })
   }
 
-  publish = (payload: HMR_ACTION_TYPES) => {
-    if (this.closed) return
-    this.eventStream.publish(payload)
+  getClient = (requestId: string): ws | undefined => {
+    return this.clientsByRequestId.get(requestId)
   }
+
+  publishToClient = (client: ws, payload: HMR_ACTION_TYPES) => {
+    if (this.closed) {
+      return
+    }
+
+    client.send(JSON.stringify(payload))
+  }
+
+  publish = (payload: HMR_ACTION_TYPES) => {
+    if (this.closed) {
+      return
+    }
+
+    for (const wsClient of this.clients) {
+      this.publishToClient(wsClient, payload)
+    }
+  }
+
   close = () => {
-    if (this.closed) return
+    if (this.closed) {
+      return
+    }
+
     // Can't remove compiler plugins, so we just set a flag and noop if closed
     // https://github.com/webpack/tapable/issues/32#issuecomment-350644466
     this.closed = true
-    this.eventStream.close()
+
+    for (const wsClient of this.clients) {
+      // it's okay to not cleanly close these websocket connections, this is dev
+      wsClient.terminate()
+    }
+
+    this.clients.clear()
+    this.clientsByRequestId.clear()
   }
 }

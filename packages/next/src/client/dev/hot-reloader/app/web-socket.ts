@@ -18,8 +18,15 @@ export function createWebSocket(
   assetPrefix: string,
   staticIndicatorState: StaticIndicatorState
 ) {
-  const url = getSocketUrl(assetPrefix)
-  const webSocket = new window.WebSocket(`${url}/_next/webpack-hmr`)
+  if (!self.__next_r) {
+    throw new InvariantError(
+      `Expected a request ID to be defined for the document via self.__next_r.`
+    )
+  }
+
+  const webSocket = new window.WebSocket(
+    `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
+  )
 
   if (isTerminalLoggingEnabled) {
     webSocket.addEventListener('open', () => {

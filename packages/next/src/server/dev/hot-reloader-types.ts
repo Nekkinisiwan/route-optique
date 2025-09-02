@@ -28,6 +28,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  REACT_DEBUG_CHUNK = 'reactDebugChunk',
 }
 
 interface ServerErrorAction {
@@ -127,6 +128,12 @@ export interface DevToolsConfigAction {
   data: DevToolsConfig
 }
 
+export interface ReactDebugChunkAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
+  requestId: string
+  base64EncodedChunk: string | null
+}
+
 export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
@@ -144,6 +151,7 @@ export type HMR_ACTION_TYPES =
   | ServerErrorAction
   | AppIsrManifestAction
   | DevToolsConfigAction
+  | ReactDebugChunkAction
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
@@ -167,6 +175,14 @@ export interface NextJsHotReloaderInterface {
   clearHmrServerError(): void
   start(): Promise<void>
   send(action: HMR_ACTION_TYPES): void
+  setReactDebugChannel(
+    debugChannel: {
+      readable: ReadableStream<Uint8Array>
+      // Might get a writable stream as return channel in the future.
+    },
+    htmlRequestId: string,
+    requestId: string
+  ): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,
