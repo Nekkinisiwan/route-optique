@@ -1,6 +1,14 @@
+# Créer vercel.json
+cat > vercel.json << 'EOF'
 {
-  "github": {
-    "silent": true,
-    "autoJobCancelation": true
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev", 
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "functions": {
+    "app/**": {
+      "maxDuration": 10
+    }
   }
 }
+EOF
