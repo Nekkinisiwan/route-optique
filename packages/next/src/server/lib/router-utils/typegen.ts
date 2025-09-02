@@ -226,7 +226,7 @@ export function generateLinkTypesFile(
       dynamicRouteTypes.push(routeType)
     } else {
       staticRouteTypes.push(
-        config.trailingSlash && route !== '/' ? `${routeType}/` : routeType
+        config.trailingSlash && route !== '/' && !routeType.endsWith('/') ? `${routeType}/` : routeType
       )
     }
   }
