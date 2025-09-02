@@ -1,8 +1,10 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
 
+import semver from 'next/dist/compiled/semver'
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { warn } from '../output/log'
 import { installDependencies } from '../../lib/install-dependencies'
@@ -103,6 +105,12 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
   return parsedCommandLine.options
 }
 
+const createTerminalLink = (text: string, url: string) => {
+  return `\u001b]8;;${url}\u001b\\${text}\u001b]8;;\u001b\\`
+}
+
+let useNodeNativeTSLoader = true
+
 export async function transpileConfig({
   nextConfigPath,
   configFileName,
@@ -113,6 +121,27 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
+    try {
+      if (
+        useNodeNativeTSLoader &&
+        // Native TypeScript resolution is supported with a flag
+        // since v22.7.0, and is enabled by default since v23.6.0.
+        semver.gte(process.versions.node, '22.7.0')
+      ) {
+        return (await import(pathToFileURL(nextConfigPath).href)).default
+      }
+    } catch (cause) {
+      warn(
+        `Failed to import "${configFileName}" using ${createTerminalLink(
+          'Node.js native TypeScript resolution',
+          'https://nodejs.org/api/typescript.html'
+        )}. Falling back to legacy resolution.`,
+        { cause }
+      )
+      // Once failed, fallback to legacy resolution for current session.
+      useNodeNativeTSLoader = false
+    }
+
     // Ensure TypeScript is installed to use the API.
     await verifyTypeScriptSetup(cwd, configFileName)
     const compilerOptions = await getTsConfig(cwd)
