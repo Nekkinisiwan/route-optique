@@ -5,8 +5,6 @@ import '../lib/require-instrumentation-client'
 
 // TODO: Remove use of `any` type.
 import { initialize, version, router, emitter, hydrate } from './'
-// TODO: This seems necessary, but is a module in the `dev` directory.
-import { displayContent } from './dev/fouc'
 
 window.next = {
   version,
@@ -39,7 +37,7 @@ initialize({})
       )
     }
 
-    return hydrate({ beforeRender: displayContent })
+    return hydrate()
   })
   .catch((err) => {
     console.error('Error was not caught', err)
