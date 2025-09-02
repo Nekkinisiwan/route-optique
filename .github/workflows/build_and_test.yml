@@ -247,7 +247,6 @@ jobs:
     with:
       afterBuild: |
         export IS_TURBOPACK_TEST=1
-        export TURBOPACK_DEV=1
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -259,14 +258,27 @@ jobs:
     secrets: inherit
 
   test-turbopack-integration:
-    name: test turbopack development integration
+    name: test turbopack integration
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
       matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        group:
+          - 1/13
+          - 2/13
+          - 3/13
+          - 4/13
+          - 5/13
+          - 6/13
+          - 7/13
+          - 8/13
+          - 9/13
+          - 10/13
+          - 11/13
+          - 12/13
+          - 13/13
         # Empty value uses default
         # TODO: Run with React 18.
         # Integration tests use the installed React version in next/package.json.include:
@@ -278,14 +290,13 @@ jobs:
       nodeVersion: 18.18.2
       afterBuild: |
         export IS_TURBOPACK_TEST=1
-        export TURBOPACK_DEV=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         node run-tests.js \
           --timings \
           -g ${{ matrix.group }} \
           --type integration
-      stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
+      stepName: 'test-turbopack-integration-${{ matrix.group }}-react-${{ matrix.react }}'
     secrets: inherit
 
   test-turbopack-production:
@@ -311,35 +322,11 @@ jobs:
       nodeVersion: 18.18.2
       afterBuild: |
         export IS_TURBOPACK_TEST=1
-        export TURBOPACK_BUILD=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
-  test-turbopack-production-integration:
-    name: test turbopack production integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 18.18.2
-      afterBuild: |
-        export IS_TURBOPACK_TEST=1
-        export TURBOPACK_BUILD=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-rspack-dev:
@@ -359,10 +346,6 @@ jobs:
         # rspack flags
         export NEXT_RSPACK=1
         export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_DEV=1
 
         node run-tests.js \
           --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
@@ -388,10 +371,6 @@ jobs:
         # rspack flags
         export NEXT_RSPACK=1
         export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_DEV=1
 
         node run-tests.js \
           --timings \
@@ -425,7 +404,6 @@ jobs:
 
         # HACK: Despite the name, this environment variable is only used to gate
         # tests, so it's applicable to rspack
-        export TURBOPACK_BUILD=1
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}'
@@ -451,7 +429,6 @@ jobs:
 
         # HACK: Despite the name, this environment variable is only used to gate
         # tests, so it's applicable to rspack
-        export TURBOPACK_BUILD=1
 
         node run-tests.js \
           --timings \
@@ -976,7 +953,6 @@ jobs:
         'test-new-tests-start',
         'test-new-tests-deploy',
         'test-turbopack-production',
-        'test-turbopack-production-integration',
         'test-unit-windows',
         'test-dev-windows',
         'test-integration-windows',
