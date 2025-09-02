@@ -107,12 +107,12 @@ async function nextMetadataImageLoader(
 
     export default async function (props) {
       const { generateImageMetadata } = imageModule
+      
       const resolvedParams = await props.params
-
       if (generateImageMetadata) {
-        const imageMetadataArray = await generateImageMetadata({ params: resolvedParams })
-        return Promise.all(imageMetadataArray.map((imageMetadata, index) => {
-          const idParam = (imageMetadata.id || index) + ''
+        const imageMetadataArray = await generateImageMetadata({ params: props.params })
+        return Promise.all(imageMetadataArray.map((imageMetadata) => {
+          const idParam = imageMetadata.id + ''
           return getImageMetadata(imageMetadata, idParam, resolvedParams)
         }))
       } else {
