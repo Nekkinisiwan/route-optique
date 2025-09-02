@@ -487,6 +487,17 @@ async fn parse_config_value(
 ) -> Result<()> {
     let get_value = || {
         init.map(|init| eval_context.eval(&init))
+            .map(|v| {
+                // Special case, as we don't call `link` here: assume that `undefined` is a free
+                // variable.
+                if let JsValue::FreeVar(name) = &v
+                    && name == "undefined"
+                {
+                    JsValue::Constant(ConstantValue::Undefined)
+                } else {
+                    v
+                }
+            })
             .unwrap_or(JsValue::Constant(ConstantValue::Undefined))
     };
 
@@ -546,6 +557,9 @@ async fn parse_config_value(
                     .await;
                 };
 
+                if matches!(val, JsValue::Constant(ConstantValue::Undefined)) {
+                    return Ok(());
+                }
                 match key {
                     "runtime" => {
                         let Some(val) = val.as_str() else {
@@ -636,6 +650,9 @@ async fn parse_config_value(
         }
         "dynamic" => {
             let value = get_value();
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
@@ -665,7 +682,9 @@ async fn parse_config_value(
         }
         "dynamicParams" => {
             let value = get_value();
-
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_bool() else {
                 return invalid_config(
                     source,
@@ -703,7 +722,9 @@ async fn parse_config_value(
         }
         "fetchCache" => {
             let value = get_value();
-
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
@@ -733,7 +754,9 @@ async fn parse_config_value(
         }
         "runtime" => {
             let value = get_value();
-
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
@@ -763,7 +786,9 @@ async fn parse_config_value(
         }
         "preferredRegion" => {
             let value = get_value();
-
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let preferred_region = match value {
                 // Single value is turned into a single-element Vec.
                 JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string().into()],
@@ -814,6 +839,9 @@ async fn parse_config_value(
         }
         "experimental_ppr" => {
             let value = get_value();
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_bool() else {
                 return invalid_config(
                     source,
